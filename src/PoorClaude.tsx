@@ -1,413 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronRight, Play, Book, AlertCircle, CheckCircle, Save, Download, Upload, Trash2 } from 'lucide-react';
-
-// Complete EBNF Parser implementation
-class EBNFParser {
-  constructor(grammarText) {
-    this.grammarText = grammarText;
-    this.rules = new Map();
-    this.startRule = null;
-    this.parseGrammar();
-  }
-
-  parseGrammar() {
-    // Remove comments and empty lines
-    const lines = this.grammarText
-      .split('\n')
-      .map(line => {
-        // Remove comments (everything after (* ... *) or // or # )
-        line = line.replace(/\(\*.*?\*\)/g, '');
-        line = line.replace(/\/\/.*$/, '');
-        line = line.replace(/#.*$/, '');
-        return line.trim();
-      })
-      .filter(line => line.length > 0);
-
-    // Parse each rule
-    for (const line of lines) {
-      // Match rule definition: identifier = definition or identifier ::= definition
-      const ruleMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(::?=|\u2192)\s*(.+)$/);
-      if (ruleMatch) {
-        const [, ruleName, , definition] = ruleMatch;
-        if (!this.startRule) this.startRule = ruleName;
-        this.rules.set(ruleName, this.parseRuleDefinition(definition));
-      }
-    }
-
-    if (this.rules.size === 0) {
-      throw new Error('No valid grammar rules found');
-    }
-  }
-
-  parseRuleDefinition(definition) {
-    return this.parseAlternation(definition);
-  }
-
-  parseAlternation(text) {
-    // Split by | but respect grouping
-    const alternatives = this.splitRespectingGroups(text, '|');
-    
-    if (alternatives.length === 1) {
-      return this.parseConcatenation(alternatives[0]);
-    }
-
-    return {
-      type: 'alternation',
-      alternatives: alternatives.map(alt => this.parseConcatenation(alt))
-    };
-  }
-
-  parseConcatenation(text) {
-    const elements = this.tokenize(text);
-    
-    if (elements.length === 1) {
-      return this.parseElement(elements[0]);
-    }
-
-    return {
-      type: 'concatenation',
-      elements: elements.map(elem => this.parseElement(elem))
-    };
-  }
-
-  parseElement(text) {
-    text = text.trim();
-    
-    // Handle repetition operators at the end
-    if (text.endsWith('*')) {
-      return {
-        type: 'repetition',
-        min: 0,
-        max: Infinity,
-        element: this.parseElement(text.slice(0, -1))
-      };
-    }
-    
-    if (text.endsWith('+')) {
-      return {
-        type: 'repetition',
-        min: 1,
-        max: Infinity,
-        element: this.parseElement(text.slice(0, -1))
-      };
-    }
-    
-    if (text.endsWith('?')) {
-      return {
-        type: 'optional',
-        element: this.parseElement(text.slice(0, -1))
-      };
-    }
-
-    // Handle repetition with numbers: {n}, {n,}, {,m}, {n,m}
-    const repetitionMatch = text.match(/^(.+)\{(\d*),?(\d*)\}$/);
-    if (repetitionMatch) {
-      const [, element, min, max] = repetitionMatch;
-      return {
-        type: 'repetition',
-        min: min ? parseInt(min) : 0,
-        max: max ? parseInt(max) : (min && !max.includes(',') ? parseInt(min) : Infinity),
-        element: this.parseElement(element)
-      };
-    }
-
-    // Handle grouping: ( ... )
-    if (text.startsWith('(') && text.endsWith(')')) {
-      return this.parseAlternation(text.slice(1, -1));
-    }
-
-    // Handle optional: [ ... ]
-    if (text.startsWith('[') && text.endsWith(']')) {
-      return {
-        type: 'optional',
-        element: this.parseAlternation(text.slice(1, -1))
-      };
-    }
-
-    // Handle repetition: { ... }
-    if (text.startsWith('{') && text.endsWith('}')) {
-      return {
-        type: 'repetition',
-        min: 0,
-        max: Infinity,
-        element: this.parseAlternation(text.slice(1, -1))
-      };
-    }
-
-    // Handle terminal strings
-    if ((text.startsWith('"') && text.endsWith('"')) || 
-        (text.startsWith("'") && text.endsWith("'"))) {
-      return {
-        type: 'terminal',
-        value: text.slice(1, -1)
-      };
-    }
-
-    // Handle character classes and ranges
-    if (text.includes('-') && text.length === 3) {
-      const [start, , end] = text;
-      return {
-        type: 'character_range',
-        start: start,
-        end: end
-      };
-    }
-
-    // Handle special symbols
-    if (text === 'empty' || text === 'ε' || text === 'epsilon') {
-      return { type: 'empty' };
-    }
-
-    // Non-terminal (rule reference)
-    if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(text)) {
-      return {
-        type: 'non_terminal',
-        name: text
-      };
-    }
-
-    // If we can't parse it, treat as terminal
-    return {
-      type: 'terminal',
-      value: text
-    };
-  }
-
-  tokenize(text) {
-    const tokens = [];
-    let current = '';
-    let inQuotes = false;
-    let quoteChar = '';
-    let groupDepth = 0;
-    let i = 0;
-
-    while (i < text.length) {
-      const char = text[i];
-
-      if (!inQuotes && (char === '"' || char === "'")) {
-        if (current.trim()) {
-          tokens.push(current.trim());
-          current = '';
-        }
-        inQuotes = true;
-        quoteChar = char;
-        current = char;
-      } else if (inQuotes && char === quoteChar) {
-        current += char;
-        tokens.push(current);
-        current = '';
-        inQuotes = false;
-        quoteChar = '';
-      } else if (inQuotes) {
-        current += char;
-      } else if (char === '(' || char === '[' || char === '{') {
-        if (current.trim() && groupDepth === 0) {
-          tokens.push(current.trim());
-          current = '';
-        }
-        current += char;
-        groupDepth++;
-      } else if (char === ')' || char === ']' || char === '}') {
-        current += char;
-        groupDepth--;
-        if (groupDepth === 0) {
-          tokens.push(current);
-          current = '';
-        }
-      } else if (groupDepth > 0) {
-        current += char;
-      } else if (/\s/.test(char)) {
-        if (current.trim()) {
-          tokens.push(current.trim());
-          current = '';
-        }
-      } else {
-        current += char;
-      }
-      i++;
-    }
-
-    if (current.trim()) {
-      tokens.push(current.trim());
-    }
-
-    return tokens;
-  }
-
-  splitRespectingGroups(text, delimiter) {
-    const parts = [];
-    let current = '';
-    let groupDepth = 0;
-    let inQuotes = false;
-    let quoteChar = '';
-
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-
-      if (!inQuotes && (char === '"' || char === "'")) {
-        inQuotes = true;
-        quoteChar = char;
-        current += char;
-      } else if (inQuotes && char === quoteChar) {
-        inQuotes = false;
-        quoteChar = '';
-        current += char;
-      } else if (inQuotes) {
-        current += char;
-      } else if (char === '(' || char === '[' || char === '{') {
-        groupDepth++;
-        current += char;
-      } else if (char === ')' || char === ']' || char === '}') {
-        groupDepth--;
-        current += char;
-      } else if (char === delimiter && groupDepth === 0) {
-        parts.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-
-    if (current.trim()) {
-      parts.push(current.trim());
-    }
-
-    return parts;
-  }
-
-  parse(input) {
-    if (!this.startRule) {
-      throw new Error('No start rule defined');
-    }
-
-    const result = this.parseRule(input, 0, this.startRule);
-    
-    if (!result) {
-      throw new Error(`Parse failed at beginning of input`);
-    }
-    
-    if (result.position < input.length) {
-      const remaining = input.slice(result.position);
-      throw new Error(`Parse incomplete. Remaining: "${remaining}" at position ${result.position}`);
-    }
-
-    return result.node;
-  }
-
-  parseRule(input, position, ruleName) {
-    if (!this.rules.has(ruleName)) {
-      throw new Error(`Unknown rule: ${ruleName}`);
-    }
-
-    const rule = this.rules.get(ruleName);
-    const result = this.parseExpression(input, position, rule);
-    
-    if (result) {
-      return {
-        node: {
-          type: ruleName,
-          value: input.slice(position, result.position),
-          start: position,
-          end: result.position,
-          children: result.children || []
-        },
-        position: result.position
-      };
-    }
-    
-    return null;
-  }
-
-  parseExpression(input, position, expression) {
-    switch (expression.type) {
-      case 'alternation':
-        for (const alternative of expression.alternatives) {
-          const result = this.parseExpression(input, position, alternative);
-          if (result) return result;
-        }
-        return null;
-
-      case 'concatenation':
-        let currentPos = position;
-        const children = [];
-        
-        for (const element of expression.elements) {
-          const result = this.parseExpression(input, currentPos, element);
-          if (!result) return null;
-          
-          if (result.node) children.push(result.node);
-          if (result.children) children.push(...result.children);
-          currentPos = result.position;
-        }
-        
-        return { children, position: currentPos };
-
-      case 'repetition':
-        const repChildren = [];
-        let repPos = position;
-        let count = 0;
-        
-        while (count < expression.max) {
-          const result = this.parseExpression(input, repPos, expression.element);
-          if (!result) break;
-          
-          if (result.node) repChildren.push(result.node);
-          if (result.children) repChildren.push(...result.children);
-          repPos = result.position;
-          count++;
-        }
-        
-        if (count < expression.min) return null;
-        return { children: repChildren, position: repPos };
-
-      case 'optional':
-        const optResult = this.parseExpression(input, position, expression.element);
-        return optResult || { children: [], position };
-
-      case 'terminal':
-        if (input.slice(position, position + expression.value.length) === expression.value) {
-          return {
-            node: {
-              type: 'terminal',
-              value: expression.value,
-              start: position,
-              end: position + expression.value.length,
-              children: []
-            },
-            position: position + expression.value.length
-          };
-        }
-        return null;
-
-      case 'character_range':
-        const char = input[position];
-        if (char && char >= expression.start && char <= expression.end) {
-          return {
-            node: {
-              type: 'character',
-              value: char,
-              start: position,
-              end: position + 1,
-              children: []
-            },
-            position: position + 1
-          };
-        }
-        return null;
-
-      case 'non_terminal':
-        return this.parseRule(input, position, expression.name);
-
-      case 'empty':
-        return { children: [], position };
-
-      default:
-        return null;
-    }
-  }
-}
+import { Grammars, IRule, IToken } from "ebnf";
 
 const EXAMPLE_GRAMMARS = {
+  equation : `<Equation>         ::= <BinaryOperation> | <Term>
+<Term>             ::= "(" <RULE_WHITESPACE> <Equation> <RULE_WHITESPACE> ")" | "(" <RULE_WHITESPACE> <Number> <RULE_WHITESPACE> ")" | <RULE_WHITESPACE> <Number> <RULE_WHITESPACE>
+<BinaryOperation>  ::= <Term> <RULE_WHITESPACE> <Operator> <RULE_WHITESPACE> <Term>
+
+<Number>           ::= <RULE_NEGATIVE> <RULE_NON_ZERO> <RULE_NUMBER_LIST> | <RULE_NON_ZERO> <RULE_NUMBER_LIST> | <RULE_DIGIT>
+<Operator>         ::= "+" | "-" | "*" | "/" | "^"
+
+<RULE_NUMBER_LIST> ::= <RULE_DIGIT> <RULE_NUMBER_LIST> | <RULE_DIGIT>
+<RULE_NEGATIVE>    ::= "-"
+<RULE_NON_ZERO>    ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+<RULE_DIGIT>       ::= "0" | <RULE_NON_ZERO>
+<RULE_WHITESPACE>  ::= <RULE_WS> | ""
+<RULE_WS>          ::= " " <RULE_WHITESPACE> | <EOL> <RULE_WHITESPACE> | " " | <EOL>`,
   arithmetic: `expression ::= term (("+" | "-") term)*
 term ::= factor (("*" | "/") factor)*
 factor ::= number | "(" expression ")"
@@ -497,17 +105,17 @@ const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }) => {
 };
 
 export default function EBNFPlayground() {
-  const [grammar, setGrammar] = useState(EXAMPLE_GRAMMARS.simple);
-  const [input, setInput] = useState('hello world');
-  const [parseTree, setParseTree] = useState(null);
-  const [parseError, setParseError] = useState(null);
+  const [grammar, setGrammar] = useState(EXAMPLE_GRAMMARS.equation);
+  const [input, setInput] = useState('');
+  const [parseTree, setParseTree] = useState<IToken | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
   const [highlightedNode, setHighlightedNode] = useState(null);
-  const [compiledParser, setCompiledParser] = useState(null);
-  const [grammarError, setGrammarError] = useState(null);
+  const [compiledParser, setCompiledParser] = useState<Grammars.BNF.Parser | null>(null);
+  const [grammarError, setGrammarError] = useState<null | string>(null);
   const [isGrammarValid, setIsGrammarValid] = useState(false);
   const [selectedRule, setSelectedRule] = useState('');
-  const [availableRules, setAvailableRules] = useState([]);
+  const [availableRules, setAvailableRules] = useState<IRule[]>([]);
   const [savedGrammars, setSavedGrammars] = useState({});
   const [saveGrammarName, setSaveGrammarName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -539,35 +147,38 @@ export default function EBNFPlayground() {
     }
   }, [savedGrammars]);
 
+  const invalidateGrammar = (err: null | string) => {
+    setCompiledParser(null);
+    setGrammarError(err);
+    setIsGrammarValid(false);
+    setAvailableRules([]);
+    setSelectedRule('');
+    setParseTree(null);
+    setIsValid(false);
+    setParseError(null);
+    setHighlightedNode(null);
+  };
+
   const compileGrammar = () => {
     try {
-      const parser = new EBNFParser(grammar);
+      invalidateGrammar(null);
+      // const parser = new EBNFParser(grammar);
+      const processedGrammar = grammar.trim() + "\n";
+      const parser = new Grammars.BNF.Parser(processedGrammar);
       setCompiledParser(parser);
       setGrammarError(null);
       setIsGrammarValid(true);
       
       // Extract available rules for the selector
-      const rules = Array.from(parser.rules.keys());
+      const rules = parser.grammarRules;
       setAvailableRules(rules);
       
       // Set default rule if none selected or if selected rule no longer exists
-      if (!selectedRule || !rules.includes(selectedRule)) {
-        setSelectedRule(parser.startRule || rules[0] || '');
-      }
-      
-      // Auto-parse input if there's a valid grammar and input
-      if (input.trim()) {
-        parseInput(parser);
+      if (!selectedRule || !rules.find(r => r.name === selectedRule)) {
+        setSelectedRule(rules[0].name || '');
       }
     } catch (error) {
-      setCompiledParser(null);
-      setGrammarError(error.message);
-      setIsGrammarValid(false);
-      setAvailableRules([]);
-      setSelectedRule('');
-      setParseTree(null);
-      setIsValid(false);
-      setParseError(null);
+      invalidateGrammar(error.message);
     }
   };
 
@@ -579,24 +190,20 @@ export default function EBNFPlayground() {
 
     try {
       if (input.trim()) {
-        // Use selected rule as start rule, or fallback to parser's start rule
-        const ruleToUse = selectedRule || parser.startRule;
+        const ruleToUse = selectedRule;
         if (!ruleToUse) {
           setParseError('No rule selected for parsing');
           return;
         }
         
         // Temporarily override the start rule if different
-        const originalStartRule = parser.startRule;
-        parser.startRule = ruleToUse;
-        
-        const tree = parser.parse(input);
-        setParseTree(tree);
-        setIsValid(true);
-        setParseError(null);
-        
-        // Restore original start rule
-        parser.startRule = originalStartRule;
+        const tree = parser.getAST(input, ruleToUse)
+        console.log(`parsing: ${input}`, tree);
+        if (tree) {
+          setParseTree(tree);
+          setIsValid(true);
+          setParseError(null);
+        }
       } else {
         setParseTree(null);
         setIsValid(false);
@@ -611,15 +218,7 @@ export default function EBNFPlayground() {
 
   useEffect(() => {
     // When grammar changes, invalidate compiled state
-    setCompiledParser(null);
-    setGrammarError(null);
-    setIsGrammarValid(false);
-    setAvailableRules([]);
-    setSelectedRule('');
-    setParseTree(null);
-    setIsValid(false);
-    setParseError(null);
-    setHighlightedNode(null);
+    invalidateGrammar(null);
   }, [grammar]);
 
   useEffect(() => {
@@ -853,7 +452,7 @@ export default function EBNFPlayground() {
                         className="px-2 py-1 border rounded text-sm bg-white"
                       >
                         {availableRules.map(rule => (
-                          <option key={rule} value={rule}>{rule}</option>
+                          <option key={rule.name} value={rule.name}>{rule.name}</option>
                         ))}
                       </select>
                     </div>
