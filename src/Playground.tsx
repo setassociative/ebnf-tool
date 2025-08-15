@@ -205,17 +205,17 @@ export default function EBNFPlayground() {
         return;
       }
 
-      // Temporarily override the start rule if different
       const tree = parser.getAST(input, ruleToUse)
-      console.log(`parsing: ${input}`, tree);
-      if (tree && !tree?.errors && tree.errors.length === 0) {
+      const errStrings = (tree?.errors || []).map(e => e.message);
+      if (tree && errStrings.length === 0) {
         setIsValid(true);
         setParseError(null);
         setParseTree(tree);
       } else {
+        (tree?.errors || []).map(e => console.log(e));
         invalidParse(
-          tree?.errors
-            ? tree.errors.map(e => e.message).join("\n")
+          errStrings.length > 0
+            ? errStrings.join("\n")
             : "Unable to parse; did not produce a valid tree.");
       }
     } catch (error) {
