@@ -22,15 +22,15 @@ factor ::= number | "(" expression ")"
 number ::= digit+
 digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"`,
 
-  json: `json ::= object | array | string | number | "true" | "false" | "null"
-object ::= "{" (pair ("," pair)*)? "}"
-pair ::= string ":" json
-array ::= "[" (json ("," json)*)? "]"
-string ::= '"' char* '"'
-char ::= letter | digit | " "
-number ::= digit+
-digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-letter ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"`,
+  json: `<json>   ::= <object> | <array> | <string> | <number> | "true" | "false" | "null"
+<object> ::= "{" (<pair> ("," <pair>)*)? "}"
+<pair>   ::= <string> ":" <json>
+<array>  ::= "[" (<json> ("," <json>)*)? "]"
+<string> ::= '"' <char>* '"'
+<char>   ::= <letter> | <digit> | " "
+<number> ::= <digit>+
+<digit>  ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+<letter> ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"`,
 
   simple: `greeting ::= "hello" | "hi" | "hey"
 target ::= "world" | "there"
@@ -208,14 +208,18 @@ export default function EBNFPlayground() {
       // Temporarily override the start rule if different
       const tree = parser.getAST(input, ruleToUse)
       console.log(`parsing: ${input}`, tree);
-      if (!tree.errors || tree.errors.length === 0) {
+      if (tree && !tree?.errors && tree.errors.length === 0) {
         setIsValid(true);
         setParseError(null);
         setParseTree(tree);
       } else {
-        invalidParse(tree.errors.map(e => e.message).join("\n"));
+        invalidParse(
+          tree?.errors
+            ? tree.errors.map(e => e.message).join("\n")
+            : "Unable to parse; did not produce a valid tree.");
       }
     } catch (error) {
+      console.log("catch", error);
       invalidParse(error.message);
     }
   };
@@ -306,7 +310,7 @@ export default function EBNFPlayground() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col w-screen">
       {/* Header */}
       <div className="bg-white border-b shadow-sm p-4">
         <div className="flex items-center justify-between">
@@ -315,7 +319,7 @@ export default function EBNFPlayground() {
             EBNF Grammar Playground
           </h1>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 pr-4">
             <select
               className="px-3 py-2 border rounded-lg bg-white"
               onChange={(e) => loadExample(e.target.value)}
@@ -383,7 +387,7 @@ export default function EBNFPlayground() {
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Grammar Editor */}
-        <div className="w-1/2 border-r bg-white flex flex-col">
+        <div className="w-4/5 border-r bg-white flex flex-col">
           <div className="p-4 border-b bg-gray-50">
             <div className="flex items-center justify-between">
               <div>
@@ -437,7 +441,7 @@ export default function EBNFPlayground() {
         </div>
 
         {/* Input and Results */}
-        <div className="w-1/2 flex flex-col">
+        <div className="w-2/5 flex flex-col pr-4">
           {/* Input Section */}
           <div className="border-b bg-white">
             <div className="p-4 border-b bg-gray-50">
@@ -500,7 +504,7 @@ export default function EBNFPlayground() {
                 <>
                   <AlertCircle className="text-red-500" size={20} />
                   <span className="text-red-600 font-medium">Parse Error</span>
-                  <span className="text-sm text-gray-600">- {parseError}</span>
+                  <span className="text-sm text-gray-600">{parseError}</span>
                 </>
               ) : isValid ? (
                 <>
