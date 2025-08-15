@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Play, Book, AlertCircle, CheckCircle, Save, 
 import { Grammars, IRule, IToken } from "ebnf";
 
 const EXAMPLE_GRAMMARS = {
-  equation : `<Equation>         ::= <BinaryOperation> | <Term>
+  equation: `<Equation>         ::= <BinaryOperation> | <Term>
 <Term>             ::= "(" <RULE_WHITESPACE> <Equation> <RULE_WHITESPACE> ")" | "(" <RULE_WHITESPACE> <Number> <RULE_WHITESPACE> ")" | <RULE_WHITESPACE> <Number> <RULE_WHITESPACE>
 <BinaryOperation>  ::= <Term> <RULE_WHITESPACE> <Operator> <RULE_WHITESPACE> <Term>
 
@@ -21,7 +21,7 @@ term ::= factor (("*" | "/") factor)*
 factor ::= number | "(" expression ")"
 number ::= digit+
 digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"`,
-  
+
   json: `json ::= object | array | string | number | "true" | "false" | "null"
 object ::= "{" (pair ("," pair)*)? "}"
 pair ::= string ":" json
@@ -55,15 +55,14 @@ const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }) => {
 
   return (
     <div className="tree-node">
-      <div 
-        className={`flex items-center gap-2 py-1 px-2 cursor-pointer hover:bg-blue-50 rounded ${
-          isHighlighted ? 'bg-blue-100 border border-blue-300' : ''
-        }`}
+      <div
+        className={`flex items-center gap-2 py-1 px-2 cursor-pointer hover:bg-blue-50 rounded ${isHighlighted ? 'bg-blue-100 border border-blue-300' : ''
+          }`}
         style={{ marginLeft: depth * 20 }}
         onClick={() => onNodeClick(node)}
       >
         {hasChildren ? (
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               setExpanded(!expanded);
@@ -75,7 +74,7 @@ const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }) => {
         ) : (
           <div className="w-5" />
         )}
-        
+
         <span className="font-mono text-sm">
           <span className="text-blue-600 font-semibold">{node.type}</span>
           {node.value && (
@@ -86,11 +85,11 @@ const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }) => {
           </span>
         </span>
       </div>
-      
+
       {expanded && hasChildren && (
         <div>
           {node.children.map((child, index) => (
-            <TreeNode 
+            <TreeNode
               key={index}
               node={child}
               depth={depth + 1}
@@ -168,11 +167,11 @@ export default function EBNFPlayground() {
       setCompiledParser(parser);
       setGrammarError(null);
       setIsGrammarValid(true);
-      
+
       // Extract available rules for the selector
       const rules = parser.grammarRules;
       setAvailableRules(rules);
-      
+
       // Set default rule if none selected or if selected rule no longer exists
       if (!selectedRule || !rules.find(r => r.name === selectedRule)) {
         setSelectedRule(rules[0].name || '');
@@ -182,37 +181,42 @@ export default function EBNFPlayground() {
     }
   };
 
+  const invalidParse = (msg: string) => {
+    setParseTree(null);
+    setIsValid(false);
+    setParseError(msg);
+  };
+
   const parseInput = (parser = compiledParser) => {
     if (!parser) {
       setParseError('Please compile the grammar first');
       return;
     }
-
+    
     try {
-      if (input.trim()) {
-        const ruleToUse = selectedRule;
-        if (!ruleToUse) {
-          setParseError('No rule selected for parsing');
-          return;
-        }
-        
-        // Temporarily override the start rule if different
-        const tree = parser.getAST(input, ruleToUse)
-        console.log(`parsing: ${input}`, tree);
-        if (tree) {
-          setParseTree(tree);
-          setIsValid(true);
-          setParseError(null);
-        }
-      } else {
-        setParseTree(null);
-        setIsValid(false);
-        setParseError(null);
-      }
-    } catch (error) {
+      input.trim();
       setParseTree(null);
       setIsValid(false);
-      setParseError(error.message);
+      setParseError(null);
+
+      const ruleToUse = selectedRule;
+      if (!ruleToUse) {
+        setParseError('No rule selected for parsing');
+        return;
+      }
+
+      // Temporarily override the start rule if different
+      const tree = parser.getAST(input, ruleToUse)
+      console.log(`parsing: ${input}`, tree);
+      if (!tree.errors || tree.errors.length === 0) {
+        setIsValid(true);
+        setParseError(null);
+        setParseTree(tree);
+      } else {
+        invalidParse(tree.errors.map(e => e.message).join("\n"));
+      }
+    } catch (error) {
+      invalidParse(error.message);
     }
   };
 
@@ -240,7 +244,7 @@ export default function EBNFPlayground() {
 
   const saveGrammar = () => {
     if (!saveGrammarName.trim()) return;
-    
+
     setSavedGrammars(prev => ({
       ...prev,
       [saveGrammarName]: grammar
@@ -310,9 +314,9 @@ export default function EBNFPlayground() {
             <Book className="text-blue-600" />
             EBNF Grammar Playground
           </h1>
-          
+
           <div className="flex items-center gap-4">
-            <select 
+            <select
               className="px-3 py-2 border rounded-lg bg-white"
               onChange={(e) => loadExample(e.target.value)}
               value=""
@@ -326,7 +330,7 @@ export default function EBNFPlayground() {
 
             {/* Saved Grammars Dropdown */}
             {Object.keys(savedGrammars).length > 0 && (
-              <select 
+              <select
                 className="px-3 py-2 border rounded-lg bg-white"
                 onChange={(e) => e.target.value && loadSavedGrammar(e.target.value)}
                 value=""
@@ -347,7 +351,7 @@ export default function EBNFPlayground() {
               >
                 <Save size={16} />
               </button>
-              
+
               <button
                 onClick={downloadGrammar}
                 className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-1"
@@ -355,7 +359,7 @@ export default function EBNFPlayground() {
               >
                 <Download size={16} />
               </button>
-              
+
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 flex items-center gap-1"
@@ -363,7 +367,7 @@ export default function EBNFPlayground() {
               >
                 <Upload size={16} />
               </button>
-              
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -385,18 +389,17 @@ export default function EBNFPlayground() {
               <div>
                 <h2 className="font-semibold text-gray-800">Grammar (EBNF)</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Full EBNF support: ::= | () [] {} * + ? "terminals" comments
+                  Full EBNF support: ::= | () [] { } * + ? "terminals" comments
                 </p>
               </div>
               <button
                 onClick={compileGrammar}
-                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
-                  isGrammarValid 
-                    ? 'bg-green-100 text-green-700 border border-green-300' 
-                    : grammarError 
-                    ? 'bg-red-100 text-red-700 border border-red-300'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${isGrammarValid
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : grammarError
+                      ? 'bg-red-100 text-red-700 border border-red-300'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
               >
                 {isGrammarValid ? (
                   <>
@@ -441,7 +444,7 @@ export default function EBNFPlayground() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <h2 className="font-semibold text-gray-800">Test Input</h2>
-                  
+
                   {/* Rule Selector */}
                   {availableRules.length > 0 && (
                     <div className="flex items-center gap-2">
@@ -458,21 +461,20 @@ export default function EBNFPlayground() {
                     </div>
                   )}
                 </div>
-                
+
                 <button
                   onClick={() => parseInput()}
                   disabled={!isGrammarValid}
-                  className={`px-3 py-1 rounded-lg text-sm flex items-center gap-1 ${
-                    isGrammarValid
+                  className={`px-3 py-1 rounded-lg text-sm flex items-center gap-1 ${isGrammarValid
                       ? 'bg-blue-600 text-white hover:bg-blue-700'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   <Play size={14} />
                   Parse
                 </button>
               </div>
-              
+
               {!isGrammarValid && (
                 <p className="text-sm text-gray-500 mt-1">
                   Compile the grammar first to enable parsing
@@ -518,8 +520,8 @@ export default function EBNFPlayground() {
             </div>
             <div className="p-4 h-full overflow-auto">
               {parseTree ? (
-                <TreeNode 
-                  node={parseTree} 
+                <TreeNode
+                  node={parseTree}
                   onNodeClick={handleNodeClick}
                   highlightedNode={highlightedNode}
                 />
@@ -552,7 +554,7 @@ export default function EBNFPlayground() {
               onKeyPress={(e) => e.key === 'Enter' && saveGrammar()}
               autoFocus
             />
-            
+
             {/* Show existing saved grammars for deletion */}
             {Object.keys(savedGrammars).length > 0 && (
               <div className="mb-4">
@@ -573,7 +575,7 @@ export default function EBNFPlayground() {
                 </div>
               </div>
             )}
-            
+
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => {
@@ -587,11 +589,10 @@ export default function EBNFPlayground() {
               <button
                 onClick={saveGrammar}
                 disabled={!saveGrammarName.trim()}
-                className={`px-4 py-2 rounded-lg ${
-                  saveGrammarName.trim()
+                className={`px-4 py-2 rounded-lg ${saveGrammarName.trim()
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 Save
               </button>
