@@ -16,6 +16,7 @@ const EXAMPLE_GRAMMARS = {
 <RULE_DIGIT>       ::= "0" | <RULE_NON_ZERO>
 <RULE_WHITESPACE>  ::= <RULE_WS> | ""
 <RULE_WS>          ::= " " <RULE_WHITESPACE> | <EOL> <RULE_WHITESPACE> | " " | <EOL>`,
+/*
   arithmetic: `expression ::= term (("+" | "-") term)*
 term ::= factor (("*" | "/") factor)*
 factor ::= number | "(" expression ")"
@@ -46,6 +47,7 @@ identifier ::= letter (letter | digit)*
 number ::= digit+
 letter ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
 digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"`
+*/
 };
 
 const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }) => {
@@ -320,7 +322,7 @@ export default function EBNFPlayground() {
           </h1>
 
           <div className="flex items-center gap-4 pr-4">
-            <select
+            {/* <select
               className="px-3 py-2 border rounded-lg bg-white"
               onChange={(e) => loadExample(e.target.value)}
               value=""
@@ -330,7 +332,7 @@ export default function EBNFPlayground() {
               <option value="arithmetic">Arithmetic Expression</option>
               <option value="json">JSON Subset</option>
               <option value="advanced">Advanced (Variables)</option>
-            </select>
+            </select> */}
 
             {/* Saved Grammars Dropdown */}
             {Object.keys(savedGrammars).length > 0 && (
@@ -387,14 +389,11 @@ export default function EBNFPlayground() {
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Grammar Editor */}
-        <div className="w-4/5 border-r bg-white flex flex-col">
+        <div className="w-3/5 border-r bg-white flex flex-col">
           <div className="p-4 border-b bg-gray-50">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-gray-800">Grammar (EBNF)</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Full EBNF support: ::= | () [] { } * + ? "terminals" comments
-                </p>
               </div>
               <button
                 onClick={compileGrammar}
