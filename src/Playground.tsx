@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, ReactElement } from 'react';
 import { Play, Book, AlertCircle, CheckCircle, Save, Download, Upload, Trash2 } from 'lucide-react';
 import { Grammars, IRule, IToken } from "ebnf";
 
 import TreeNode from './TreeNode';
-import { EXAMPLE_GRAMMARS } from './Examples';
+import { EXAMPLE_GRAMMARS, EXAMPLE_INPUTS } from './Examples';
 
 export default function EBNFPlayground() {
   const [grammar, setGrammar] = useState(EXAMPLE_GRAMMARS.equation);
@@ -20,8 +20,8 @@ export default function EBNFPlayground() {
   const [savedGrammars, setSavedGrammars] = useState({});
   const [saveGrammarName, setSaveGrammarName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const inputRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // const fileInputRef = useRef(null);
 
   // Load saved grammars from localStorage on component mount
   useEffect(() => {
@@ -63,7 +63,10 @@ export default function EBNFPlayground() {
   const compileGrammar = () => {
     try {
       invalidateGrammar(null);
-      console.log("grammar", grammar);
+      if (!grammar) {
+        return;
+      }
+
       const lines = grammar.split('\n')
       const processedGrammar = lines.map(l => l.trim()).reduce((acc, line) =>
         line === "" ? acc :
@@ -71,8 +74,6 @@ export default function EBNFPlayground() {
             ? acc += " " + line
             : acc += "\n" + line
       , "") + "\n";
-
-      console.log("processedGrammar:", processedGrammar);
       const parser = new Grammars.W3C.Parser(processedGrammar);
       setCompiledParser(parser);
       setGrammarError(null);
@@ -148,12 +149,12 @@ export default function EBNFPlayground() {
 
   const handleNodeClick = (node: IToken) => {
     setHighlightedNode(node);
-    // if (node.start !== undefined && node.end !== undefined) {
-    //   if (inputRef.current) {
-    //     inputRef.current.focus();
-    //     inputRef.current.setSelectionRange(node.start, node.end);
-    //   }
-    // }
+    if (node.start !== undefined && node.end !== undefined) {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(node.start, node.end);
+      }
+    }
   };
 
   const saveGrammar = () => {
@@ -198,7 +199,9 @@ export default function EBNFPlayground() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setGrammar(e.target.result);
+        if (typeof(e?.target?.result) === 'string') {
+          setGrammar(e.target.result);
+        }
       };
       reader.readAsText(file);
     }
@@ -209,15 +212,9 @@ export default function EBNFPlayground() {
   const loadExample = (exampleKey) => {
     const grammar = EXAMPLE_GRAMMARS[exampleKey];
     setGrammar(grammar);
-    if (exampleKey === 'arithmetic') {
-      setInput('3+4*2');
-    } else if (exampleKey === 'json') {
-      setInput('{"name":"John"}');
-    } else if (exampleKey === 'simple') {
-      setInput('hello world');
-    } else if (exampleKey === 'advanced') {
-      setInput('x=42;');
-    }
+
+    const input = EXAMPLE_INPUTS[exampleKey] || "";
+    setInput(input);
   };
 
   return (
@@ -238,9 +235,9 @@ export default function EBNFPlayground() {
             >
               <option value="">Load Example...</option>
               {/* <option value="simple">Simple Grammar</option> */}
-              <option value="arithmetic">Arithmetic Expression</option>
+              <option value="equation">Arithmetic Expression</option>
               <option value="json">JSON Subset</option>
-              <option value="advanced">Advanced (Variables)</option>
+              {/* <option value="advanced">Advanced (Variables)</option> */}
             </select>
 
             {/* Saved Grammars Dropdown */}

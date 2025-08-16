@@ -3,10 +3,10 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { IToken } from 'ebnf';
 
 export interface TreeNodeProps {
-    node: IToken;
-    depth: number;
-    onNodeClick: (node: IToken) => void;
-    highlightedNode: IToken | null;
+  node: IToken;
+  depth?: number;
+  onNodeClick: (node: IToken) => void;
+  highlightedNode: IToken | null;
 };
 
 const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }: TreeNodeProps) => {
@@ -38,9 +38,6 @@ const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }: TreeNodePro
 
         <span className="font-mono text-sm">
           <span className="text-blue-600 font-semibold">{node.type}</span>
-          {node.value && (
-            <span className="text-gray-600 ml-2">"{node.value}"</span>
-          )}
           <span className="text-xs text-gray-400 ml-2">
             [{node.start}-{node.end}]
           </span>
