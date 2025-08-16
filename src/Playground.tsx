@@ -16,38 +16,28 @@ const EXAMPLE_GRAMMARS = {
 <RULE_DIGIT>       ::= "0" | <RULE_NON_ZERO>
 <RULE_WHITESPACE>  ::= <RULE_WS> | ""
 <RULE_WS>          ::= " " <RULE_WHITESPACE> | <EOL> <RULE_WHITESPACE> | " " | <EOL>`,
-/*
-  arithmetic: `expression ::= term (("+" | "-") term)*
-term ::= factor (("*" | "/") factor)*
-factor ::= number | "(" expression ")"
-number ::= digit+
-digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"`,
 
-  json: `<json>   ::= <object> | <array> | <string> | <number> | "true" | "false" | "null"
-<object> ::= "{" (<pair> ("," <pair>)*)? "}"
-<pair>   ::= <string> ":" <json>
-<array>  ::= "[" (<json> ("," <json>)*)? "]"
-<string> ::= '"' <char>* '"'
-<char>   ::= <letter> | <digit> | " "
-<number> ::= <digit>+
-<digit>  ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-<letter> ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"`,
+  json: `json   ::= object | array | quoted_string | number | "true" | "false" | "null"
+object ::= "{" (pair ("," pair)*)? "}"
+pair   ::= quoted_string ":" json
+array  ::= "[" (json ("," json)*)? "]"
+quoted_string ::= '"' string '"'
+string ::= CHAR*
+number ::= [1-9] DIGIT*
+CHAR   ::= LETTER | DIGIT | " "
+DIGIT  ::= [0-9]
+LETTER ::= [a-zA-Z]`,
 
-  simple: `greeting ::= "hello" | "hi" | "hey"
-target ::= "world" | "there"
-statement ::= greeting " " target`,
-
-  advanced: `program ::= statement*
-statement ::= assignment | expression ";"
+advanced: `program    ::= statement*
+statement  ::= assignment | expression ";"
 assignment ::= identifier "=" expression ";"
 expression ::= term (("+" | "-") term)*
-term ::= factor (("*" | "/") factor)*
-factor ::= number | identifier | "(" expression ")"
-identifier ::= letter (letter | digit)*
-number ::= digit+
-letter ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
-digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"`
-*/
+term       ::= factor (("*" | "/") factor)*
+factor     ::= number | identifier | "(" expression ")"
+identifier ::= LETTER (LETTER | DIGIT)*
+number     ::= DIGIT+
+LETTER     ::= [a-zA-Z]
+DIGIT      ::= [0-9]`
 };
 
 const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }) => {
@@ -112,7 +102,7 @@ export default function EBNFPlayground() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
   const [highlightedNode, setHighlightedNode] = useState(null);
-  const [compiledParser, setCompiledParser] = useState<Grammars.BNF.Parser | null>(null);
+  const [compiledParser, setCompiledParser] = useState<Grammars.W3C.Parser | null>(null);
   const [grammarError, setGrammarError] = useState<null | string>(null);
   const [isGrammarValid, setIsGrammarValid] = useState(false);
   const [selectedRule, setSelectedRule] = useState('');
@@ -165,14 +155,14 @@ export default function EBNFPlayground() {
       invalidateGrammar(null);
       // const parser = new EBNFParser(grammar);
       const processedGrammar = grammar.trim() + "\n";
-      const parser = new Grammars.BNF.Parser(processedGrammar);
+      const parser = new Grammars.W3C.Parser(processedGrammar);
       setCompiledParser(parser);
       setGrammarError(null);
       setIsGrammarValid(true);
 
       // Extract available rules for the selector
       const rules = parser.grammarRules;
-      setAvailableRules(rules);
+      setAvailableRules(rules.filter(r => !r.fragment));
 
       // Set default rule if none selected or if selected rule no longer exists
       if (!selectedRule || !rules.find(r => r.name === selectedRule)) {
@@ -221,7 +211,6 @@ export default function EBNFPlayground() {
             : "Unable to parse; did not produce a valid tree.");
       }
     } catch (error) {
-      console.log("catch", error);
       invalidParse(error.message);
     }
   };
@@ -299,7 +288,8 @@ export default function EBNFPlayground() {
   };
 
   const loadExample = (exampleKey) => {
-    setGrammar(EXAMPLE_GRAMMARS[exampleKey]);
+    const grammar = EXAMPLE_GRAMMARS[exampleKey];
+    setGrammar(grammar);
     if (exampleKey === 'arithmetic') {
       setInput('3+4*2');
     } else if (exampleKey === 'json') {
@@ -322,17 +312,17 @@ export default function EBNFPlayground() {
           </h1>
 
           <div className="flex items-center gap-4 pr-4">
-            {/* <select
+            <select
               className="px-3 py-2 border rounded-lg bg-white"
               onChange={(e) => loadExample(e.target.value)}
               value=""
             >
               <option value="">Load Example...</option>
-              <option value="simple">Simple Grammar</option>
+              {/* <option value="simple">Simple Grammar</option> */}
               <option value="arithmetic">Arithmetic Expression</option>
               <option value="json">JSON Subset</option>
               <option value="advanced">Advanced (Variables)</option>
-            </select> */}
+            </select>
 
             {/* Saved Grammars Dropdown */}
             {Object.keys(savedGrammars).length > 0 && (
@@ -554,7 +544,7 @@ export default function EBNFPlayground() {
               onChange={(e) => setSaveGrammarName(e.target.value)}
               placeholder="Enter grammar name..."
               className="w-full px-3 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onKeyPress={(e) => e.key === 'Enter' && saveGrammar()}
+              onKeyDown={(e) => e.key === 'Enter' && saveGrammar()}
               autoFocus
             />
 
