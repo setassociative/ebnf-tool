@@ -1,99 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Play, Book, AlertCircle, CheckCircle, Save, Download, Upload, Trash2 } from 'lucide-react';
+import { Play, Book, AlertCircle, CheckCircle, Save, Download, Upload, Trash2 } from 'lucide-react';
 import { Grammars, IRule, IToken } from "ebnf";
 
-const EXAMPLE_GRAMMARS = {
-  equation: `<Equation>         ::= <BinaryOperation> | <Term>
-<Term>             ::= "(" <RULE_WHITESPACE> <Equation> <RULE_WHITESPACE> ")" | "(" <RULE_WHITESPACE> <Number> <RULE_WHITESPACE> ")" | <RULE_WHITESPACE> <Number> <RULE_WHITESPACE>
-<BinaryOperation>  ::= <Term> <RULE_WHITESPACE> <Operator> <RULE_WHITESPACE> <Term>
-
-<Number>           ::= <RULE_NEGATIVE> <RULE_NON_ZERO> <RULE_NUMBER_LIST> | <RULE_NON_ZERO> <RULE_NUMBER_LIST> | <RULE_DIGIT>
-<Operator>         ::= "+" | "-" | "*" | "/" | "^"
-
-<RULE_NUMBER_LIST> ::= <RULE_DIGIT> <RULE_NUMBER_LIST> | <RULE_DIGIT>
-<RULE_NEGATIVE>    ::= "-"
-<RULE_NON_ZERO>    ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-<RULE_DIGIT>       ::= "0" | <RULE_NON_ZERO>
-<RULE_WHITESPACE>  ::= <RULE_WS> | ""
-<RULE_WS>          ::= " " <RULE_WHITESPACE> | <EOL> <RULE_WHITESPACE> | " " | <EOL>`,
-
-  json: `json   ::= object | array | quoted_string | number | "true" | "false" | "null"
-object ::= "{" (pair ("," pair)*)? "}"
-pair   ::= quoted_string ":" json
-array  ::= "[" (json ("," json)*)? "]"
-quoted_string ::= '"' string '"'
-string ::= CHAR*
-number ::= [1-9] DIGIT*
-CHAR   ::= LETTER | DIGIT | " "
-DIGIT  ::= [0-9]
-LETTER ::= [a-zA-Z]`,
-
-advanced: `program    ::= statement*
-statement  ::= assignment | expression ";"
-assignment ::= identifier "=" expression ";"
-expression ::= term (("+" | "-") term)*
-term       ::= factor (("*" | "/") factor)*
-factor     ::= number | identifier | "(" expression ")"
-identifier ::= LETTER (LETTER | DIGIT)*
-number     ::= DIGIT+
-LETTER     ::= [a-zA-Z]
-DIGIT      ::= [0-9]`
-};
-
-const TreeNode = ({ node, depth = 0, onNodeClick, highlightedNode }) => {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children && node.children.length > 0;
-  const isHighlighted = highlightedNode === node;
-
-  return (
-    <div className="tree-node">
-      <div
-        className={`flex items-center gap-2 py-1 px-2 cursor-pointer hover:bg-blue-50 rounded ${isHighlighted ? 'bg-blue-100 border border-blue-300' : ''
-          }`}
-        style={{ marginLeft: depth * 20 }}
-        onClick={() => onNodeClick(node)}
-      >
-        {hasChildren ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded(!expanded);
-            }}
-            className="p-0.5 hover:bg-blue-200 rounded"
-          >
-            {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
-        ) : (
-          <div className="w-5" />
-        )}
-
-        <span className="font-mono text-sm">
-          <span className="text-blue-600 font-semibold">{node.type}</span>
-          {node.value && (
-            <span className="text-gray-600 ml-2">"{node.value}"</span>
-          )}
-          <span className="text-xs text-gray-400 ml-2">
-            [{node.start}-{node.end}]
-          </span>
-        </span>
-      </div>
-
-      {expanded && hasChildren && (
-        <div>
-          {node.children.map((child, index) => (
-            <TreeNode
-              key={index}
-              node={child}
-              depth={depth + 1}
-              onNodeClick={onNodeClick}
-              highlightedNode={highlightedNode}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+import TreeNode from './TreeNode';
+import { EXAMPLE_GRAMMARS } from './Examples';
 
 export default function EBNFPlayground() {
   const [grammar, setGrammar] = useState(EXAMPLE_GRAMMARS.equation);
@@ -101,7 +11,7 @@ export default function EBNFPlayground() {
   const [parseTree, setParseTree] = useState<IToken | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [isValid, setIsValid] = useState(false);
-  const [highlightedNode, setHighlightedNode] = useState(null);
+  const [highlightedNode, setHighlightedNode] = useState<IToken | null>(null);
   const [compiledParser, setCompiledParser] = useState<Grammars.W3C.Parser | null>(null);
   const [grammarError, setGrammarError] = useState<null | string>(null);
   const [isGrammarValid, setIsGrammarValid] = useState(false);
@@ -153,8 +63,16 @@ export default function EBNFPlayground() {
   const compileGrammar = () => {
     try {
       invalidateGrammar(null);
-      // const parser = new EBNFParser(grammar);
-      const processedGrammar = grammar.trim() + "\n";
+      console.log("grammar", grammar);
+      const lines = grammar.split('\n')
+      const processedGrammar = lines.map(l => l.trim()).reduce((acc, line) =>
+        line === "" ? acc :
+          line.startsWith("|")
+            ? acc += " " + line
+            : acc += "\n" + line
+      , "") + "\n";
+
+      console.log("processedGrammar:", processedGrammar);
       const parser = new Grammars.W3C.Parser(processedGrammar);
       setCompiledParser(parser);
       setGrammarError(null);
@@ -169,6 +87,7 @@ export default function EBNFPlayground() {
         setSelectedRule(rules[0].name || '');
       }
     } catch (error) {
+      console.log(error);
       invalidateGrammar(error.message);
     }
   };
@@ -220,21 +139,21 @@ export default function EBNFPlayground() {
     invalidateGrammar(null);
   }, [grammar]);
 
-  useEffect(() => {
-    // Auto-parse input when it changes or when selected rule changes
-    if (isGrammarValid && compiledParser && selectedRule) {
-      parseInput();
-    }
-  }, [input, selectedRule]);
+  // useEffect(() => {
+  //   // Auto-parse input when it changes or when selected rule changes
+  //   if (isGrammarValid && compiledParser && selectedRule) {
+  //     parseInput();
+  //   }
+  // }, [input, selectedRule]);
 
-  const handleNodeClick = (node) => {
+  const handleNodeClick = (node: IToken) => {
     setHighlightedNode(node);
-    if (node.start !== undefined && node.end !== undefined) {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        inputRef.current.setSelectionRange(node.start, node.end);
-      }
-    }
+    // if (node.start !== undefined && node.end !== undefined) {
+    //   if (inputRef.current) {
+    //     inputRef.current.focus();
+    //     inputRef.current.setSelectionRange(node.start, node.end);
+    //   }
+    // }
   };
 
   const saveGrammar = () => {
@@ -302,7 +221,7 @@ export default function EBNFPlayground() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col w-screen">
+    <div className="h-screen bg-gray-50 flex flex-col w-screen pl-4">
       {/* Header */}
       <div className="bg-white border-b shadow-sm p-4">
         <div className="flex items-center justify-between">
@@ -338,8 +257,8 @@ export default function EBNFPlayground() {
               </select>
             )}
 
-            {/* Grammar Management Buttons */}
-            <div className="flex gap-2">
+            {/* TODO: Grammar Management Buttons */}
+            {/* <div className="flex gap-2">
               <button
                 onClick={() => setShowSaveDialog(true)}
                 className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center gap-1"
@@ -371,7 +290,7 @@ export default function EBNFPlayground() {
                 onChange={uploadGrammar}
                 className="hidden"
               />
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
